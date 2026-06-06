@@ -1,0 +1,16 @@
+[
+  {
+    "version": "0.1.0",
+    "date": "2026-06-06",
+    "type": "Feature",
+    "title": "Initial payments stub",
+    "description": "Added create, list, and retrieve payment endpoints for extensibility testing."
+  },
+  {
+    "version": "0.0.2",
+    "date": "2026-06-03",
+    "type": "Breaking",
+    "title": "Renamed destination_account",
+    "description": "The request field is now `destination` to match partner API conventions."
+  }
+]

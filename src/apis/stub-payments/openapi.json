@@ -1,0 +1,78 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Stub Payments API",
+    "version": "0.1.0",
+    "description": "Minimal financial API stub used to prove registry extensibility."
+  },
+  "servers": [{ "url": "https://sandbox.example-payments.invalid/v1", "description": "Sandbox" }],
+  "paths": {
+    "/payments": {
+      "post": {
+        "operationId": "createPayment",
+        "summary": "Create payment",
+        "description": "Creates a card or bank transfer payment in sandbox.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["amount", "currency", "destination"],
+                "properties": {
+                  "amount": { "type": "integer", "description": "Amount in minor units.", "example": 1250 },
+                  "currency": { "type": "string", "example": "USD" },
+                  "destination": { "type": "string", "example": "acct_demo_123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Payment created" },
+          "400": { "description": "Invalid request" },
+          "401": { "description": "Missing or invalid API key" }
+        }
+      },
+      "get": {
+        "operationId": "listPayments",
+        "summary": "List payments",
+        "description": "Returns payments created in the selected environment.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of payments.",
+            "schema": { "type": "integer" },
+            "example": 25
+          }
+        ],
+        "responses": {
+          "200": { "description": "Payment list" },
+          "401": { "description": "Missing or invalid API key" }
+        }
+      }
+    },
+    "/payments/{paymentId}": {
+      "get": {
+        "operationId": "getPayment",
+        "summary": "Get payment",
+        "description": "Returns a payment by ID.",
+        "parameters": [
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "description": "Payment identifier.",
+            "schema": { "type": "string" },
+            "example": "pay_demo_123"
+          }
+        ],
+        "responses": {
+          "200": { "description": "Payment resource" },
+          "404": { "description": "Payment not found" }
+        }
+      }
+    }
+  }
+}
