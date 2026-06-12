@@ -37,15 +37,22 @@ function BarChart({ series }: { series: AnalyticsPoint[] }) {
   return (
     <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Call Volume</h2>
-      <div className="mt-5 flex h-48 items-end gap-3">
+      <div className="mt-5 flex h-52 gap-3">
         {series.map((point) => (
-          <div key={point.date} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-            <div
-              className="w-full rounded-t bg-accent"
-              style={{ height: `${Math.max((point.calls / maxCalls) * 100, 6).toString()}%` }}
-              title={`${point.calls.toString()} calls`}
-            />
-            <span className="truncate text-xs text-slate-500">{point.date.slice(5)}</span>
+          <div key={point.date} className="flex min-w-0 flex-1 flex-col items-center">
+            <div className="flex min-h-0 w-full flex-1 items-end">
+              <div
+                className="w-full rounded-t bg-accent"
+                style={{ height: `${Math.max((point.calls / maxCalls) * 100, 6).toString()}%` }}
+                title={`${point.calls.toString()} calls`}
+                role="img"
+                aria-label={`${point.date}: ${point.calls.toString()} calls`}
+              />
+            </div>
+            <span className="mt-2 text-xs font-medium text-slate-700">
+              {point.calls.toLocaleString()}
+            </span>
+            <span className="mt-1 truncate text-xs text-slate-500">{point.date.slice(5)}</span>
           </div>
         ))}
       </div>
