@@ -2,54 +2,86 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Stub Payments API",
-    "version": "0.1.0",
-    "description": "Minimal financial API stub used to prove registry extensibility."
+    "description": "Minimal OpenAPI stub used to verify that the portal can onboard an additional API without component changes.",
+    "version": "1.0.0"
   },
-  "servers": [{ "url": "https://sandbox.example-payments.invalid/v1", "description": "Sandbox" }],
+  "servers": [
+    {
+      "url": "https://api.example.test/payments"
+    }
+  ],
   "paths": {
     "/payments": {
+      "get": {
+        "operationId": "listPayments",
+        "summary": "List payments",
+        "description": "Returns a list of payment records for the authenticated developer account.",
+        "tags": ["Payments"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum number of payment records to return.",
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Payment"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "operationId": "createPayment",
         "summary": "Create payment",
-        "description": "Creates a card or bank transfer payment in sandbox.",
+        "description": "Creates a payment in the sandbox payments environment.",
+        "tags": ["Payments"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": ["amount", "currency", "destination"],
-                "properties": {
-                  "amount": { "type": "integer", "description": "Amount in minor units.", "example": 1250 },
-                  "currency": { "type": "string", "example": "USD" },
-                  "destination": { "type": "string", "example": "acct_demo_123" }
-                }
+                "$ref": "#/components/schemas/CreatePaymentRequest"
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Payment created" },
-          "400": { "description": "Invalid request" },
-          "401": { "description": "Missing or invalid API key" }
-        }
-      },
-      "get": {
-        "operationId": "listPayments",
-        "summary": "List payments",
-        "description": "Returns payments created in the selected environment.",
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "Maximum number of payments.",
-            "schema": { "type": "integer" },
-            "example": 25
+          "201": {
+            "description": "Payment created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request."
           }
-        ],
-        "responses": {
-          "200": { "description": "Payment list" },
-          "401": { "description": "Missing or invalid API key" }
         }
       }
     },
@@ -57,20 +89,75 @@
       "get": {
         "operationId": "getPayment",
         "summary": "Get payment",
-        "description": "Returns a payment by ID.",
+        "description": "Returns a single payment by id.",
+        "tags": ["Payments"],
         "parameters": [
           {
             "name": "paymentId",
             "in": "path",
             "required": true,
-            "description": "Payment identifier.",
-            "schema": { "type": "string" },
-            "example": "pay_demo_123"
+            "description": "Unique payment identifier.",
+            "schema": {
+              "type": "string",
+              "example": "pay_123"
+            }
           }
         ],
         "responses": {
-          "200": { "description": "Payment resource" },
-          "404": { "description": "Payment not found" }
+          "200": {
+            "description": "Payment found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment not found."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreatePaymentRequest": {
+        "type": "object",
+        "required": ["amount", "currency", "recipientId"],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "description": "Amount in the smallest currency unit.",
+            "minimum": 1
+          },
+          "currency": {
+            "type": "string",
+            "enum": ["USD", "EUR", "GBP"]
+          },
+          "recipientId": {
+            "type": "string"
+          }
+        }
+      },
+      "Payment": {
+        "type": "object",
+        "required": ["id", "amount", "currency", "status"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "succeeded", "failed"]
+          }
         }
       }
     }

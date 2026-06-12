@@ -1,5 +1,11 @@
-# Stub Payments Quickstart
+# Stub Payments Getting Started
 
-This API is intentionally small. It demonstrates that new API families can be added through `api-registry.ts` and OpenAPI files alone.
+The Stub Payments API exists to prove the registry can onboard a second API without changing application components.
 
-Create a sandbox API key, switch the header environment to Sandbox, and inspect the generated request snippets for `POST /payments`.
+## Base URL
+
+`https://api.example.test/payments`
+
+## Try first
+
+Call `GET /payments` with an optional `limit` query parameter.

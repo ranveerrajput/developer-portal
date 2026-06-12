@@ -1,16 +1,9 @@
 [
   {
     "version": "2.0.0",
-    "date": "2026-06-01",
-    "type": "Feature",
-    "title": "Added type endpoint examples",
-    "description": "The portal spec now includes typed requests for Pokemon type lookups."
-  },
-  {
-    "version": "1.9.0",
-    "date": "2026-05-18",
-    "type": "Fix",
-    "title": "Clarified pagination parameters",
-    "description": "Documented limit and offset examples for list endpoints."
+    "date": "2026-06-08",
+    "type": "feature",
+    "title": "Add PokeAPI demo registry entry",
+    "description": "Introduced Pokemon lookup and type listing endpoints for the developer portal sandbox."
   }
 ]

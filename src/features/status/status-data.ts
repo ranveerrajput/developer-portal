@@ -1,36 +1,65 @@
-import { API_REGISTRY } from "../../apis/api-registry";
+import type { ApiDefinition } from '@/apis/api-registry';
 
-export type HealthState = "Operational" | "Degraded" | "Outage";
+export type ApiHealthState = 'operational' | 'degraded' | 'outage';
 
-export interface ApiStatus {
+export type Incident = {
+  id: string;
   apiId: string;
-  state: HealthState;
-  uptime90d: number;
-  incidents: Array<{ id: string; timestamp: string; title: string; notes: string; resolved: boolean }>;
+  title: string;
+  state: ApiHealthState;
+  startedAt: string;
+  resolvedAt: string | null;
+  resolutionNotes: string;
+};
+
+export type ApiStatus = {
+  apiId: string;
+  apiName: string;
+  state: ApiHealthState;
+  uptimePercent: number;
+  incidents: Incident[];
+};
+
+export function buildMockStatusData(apis: ApiDefinition[]): ApiStatus[] {
+  return apis.map((api, index) => {
+    const state: ApiHealthState = index === 1 ? 'degraded' : 'operational';
+    const activeIncident =
+      state === 'operational'
+        ? []
+        : [
+            {
+              id: `${api.id}-active-incident`,
+              apiId: api.id,
+              title: 'Elevated error rate detected',
+              state,
+              startedAt: '2026-06-09T00:30:00.000Z',
+              resolvedAt: null,
+              resolutionNotes:
+                'Engineering is monitoring request retries and upstream dependency latency.',
+            },
+          ];
+
+    return {
+      apiId: api.id,
+      apiName: api.name,
+      state,
+      uptimePercent: state === 'operational' ? 99.98 : 98.72,
+      incidents: [
+        ...activeIncident,
+        {
+          id: `${api.id}-resolved-incident`,
+          apiId: api.id,
+          title: 'Scheduled sandbox maintenance',
+          state: 'degraded',
+          startedAt: '2026-06-01T02:00:00.000Z',
+          resolvedAt: '2026-06-01T02:45:00.000Z',
+          resolutionNotes: 'Maintenance completed and all health checks returned to normal.',
+        },
+      ],
+    };
+  });
 }
 
-export const STATUS_DATA: ApiStatus[] = API_REGISTRY.map((api, index) => ({
-  apiId: api.id,
-  state: index === 1 ? "Degraded" : "Operational",
-  uptime90d: index === 1 ? 98.72 : 99.98,
-  incidents:
-    index === 1
-      ? [
-          {
-            id: "inc_1",
-            timestamp: "2026-06-06T15:20:00Z",
-            title: "Elevated latency on sandbox payment writes",
-            notes: "Traffic has been shifted to a warm pool while write throughput is monitored.",
-            resolved: false,
-          },
-        ]
-      : [
-          {
-            id: "inc_2",
-            timestamp: "2026-05-22T08:30:00Z",
-            title: "Brief documentation cache delay",
-            notes: "Resolved after cache invalidation completed.",
-            resolved: true,
-          },
-        ],
-}));
+export function getActiveIncidents(statuses: ApiStatus[]): Incident[] {
+  return statuses.flatMap((status) => status.incidents.filter((incident) => !incident.resolvedAt));
+}

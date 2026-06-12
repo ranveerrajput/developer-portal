@@ -1,10 +1,11 @@
-# PokéAPI Quickstart
+# PokeAPI Getting Started
 
-Use the sandbox to make real requests against `https://pokeapi.co/api/v2`.
+Use the PokeAPI demo integration to explore registry-driven documentation and live sandbox requests.
 
-1. Open **Get a Pokemon**.
-2. Set `name` to `pikachu`.
-3. Run the request.
-4. Copy the generated cURL, JavaScript, or Python snippet.
+## Base URL
 
-PokéAPI does not require a real access token. When signed in, this portal still injects the local session token into sandbox requests to demonstrate how a fintech API would receive bearer credentials.
+`https://pokeapi.co/api/v2`
+
+## Try first
+
+Call `GET /pokemon/{name}` with `pikachu` as the path parameter.

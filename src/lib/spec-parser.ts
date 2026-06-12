@@ -1,79 +1,207 @@
-import type {
-  HttpMethod,
-  OpenAPIObject,
-  OperationObject,
-  ParameterObject,
-  RequestBodyObject,
-  ResponseObject,
-  SchemaObject,
-} from "./openapi-types";
+import type { OpenAPIObject } from '@/apis/api-registry';
 
-export interface EndpointDef {
+const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'options', 'head', 'trace'] as const;
+
+export type HttpMethod = (typeof HTTP_METHODS)[number];
+
+export type ParameterLocation = 'path' | 'query' | 'header' | 'cookie';
+
+export type ParameterDef = {
+  name: string;
+  in: ParameterLocation;
+  required: boolean;
+  description?: string;
+  schema?: unknown;
+};
+
+export type ResponseDef = {
+  statusCode: string;
+  description: string;
+  contentTypes: string[];
+  schema?: unknown;
+};
+
+export type RequestBodyDef = {
+  required: boolean;
+  description?: string;
+  contentTypes: string[];
+  schema?: unknown;
+};
+
+export type EndpointDef = {
   id: string;
-  apiId: string;
   method: HttpMethod;
   path: string;
-  name: string;
-  description: string;
-  parameters: ParameterObject[];
-  requestBody?: RequestBodyObject;
-  responses: Array<{ status: string; response: ResponseObject }>;
+  operationId?: string;
+  summary?: string;
+  description?: string;
+  tags: string[];
+  parameters: ParameterDef[];
+  requestBody?: RequestBodyDef;
+  responses: ResponseDef[];
+};
+
+type OpenApiPathItem = Record<string, unknown>;
+type OpenApiOperation = Record<string, unknown>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-const METHODS: HttpMethod[] = ["get", "post", "put", "patch", "delete"];
-
-export function parseOpenApiSpec(apiId: string, spec: OpenAPIObject): EndpointDef[] {
-  return Object.entries(spec.paths).flatMap(([path, item]) => {
-    return METHODS.flatMap((method) => {
-      const operation = item[method] as OperationObject | undefined;
-      if (!operation) return [];
-      const parameters = [...(item.parameters ?? []), ...(operation.parameters ?? [])];
-      return [
-        {
-          id: `${apiId}:${method}:${path}`,
-          apiId,
-          method,
-          path,
-          name: operation.summary ?? operation.operationId ?? `${method.toUpperCase()} ${path}`,
-          description: operation.description ?? spec.info.description ?? "",
-          parameters,
-          requestBody: operation.requestBody,
-          responses: Object.entries(operation.responses ?? {}).map(([status, response]) => ({
-            status,
-            response,
-          })),
-        },
-      ];
-    });
-  });
+function isHttpMethod(value: string): value is HttpMethod {
+  return HTTP_METHODS.includes(value as HttpMethod);
 }
 
-export function describeSchema(schema: SchemaObject | undefined): string {
-  if (!schema) return "unknown";
-  if (typeof schema === "boolean") return schema ? "any" : "never";
-  if (schema.$ref) return schema.$ref.split("/").at(-1) ?? schema.$ref;
-  if (schema.enum) return schema.enum.join(" | ");
-  if (schema.type === "array") return `${describeSchema(schema.items)}[]`;
-  if (schema.oneOf) return `oneOf(${schema.oneOf.map(describeSchema).join(", ")})`;
-  if (schema.anyOf) return `anyOf(${schema.anyOf.map(describeSchema).join(", ")})`;
-  if (schema.allOf) return `allOf(${schema.allOf.map(describeSchema).join(", ")})`;
-  return [schema.type, schema.format].filter(Boolean).join(":") || "object";
+function getString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
 }
 
-export function schemaExample(schema: SchemaObject | undefined): unknown {
-  if (!schema || typeof schema === "boolean") return {};
-  if (schema.example !== undefined) return schema.example;
-  if (schema.enum?.length) return schema.enum[0];
-  if (schema.type === "string") return schema.format === "date-time" ? "2026-06-06T12:00:00Z" : "string";
-  if (schema.type === "integer" || schema.type === "number") return 1;
-  if (schema.type === "boolean") return true;
-  if (schema.type === "array") return [schemaExample(schema.items)];
-  if (schema.properties) {
-    return Object.fromEntries(Object.entries(schema.properties).map(([key, value]) => [key, schemaExample(value)]));
+function getBoolean(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function getStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function toEndpointId(method: HttpMethod, path: string, operationId?: string): string {
+  if (operationId) {
+    return operationId;
   }
-  return {};
+
+  return `${method}-${path}`
+    .replace(/[{}]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
 }
 
-export function getJsonBodySchema(requestBody: RequestBodyObject | undefined): SchemaObject | undefined {
-  return requestBody?.content?.["application/json"]?.schema;
+function parseParameter(value: unknown): ParameterDef | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const name = getString(value.name);
+  const location = getString(value.in);
+
+  if (!name || !isParameterLocation(location)) {
+    return null;
+  }
+
+  return {
+    name,
+    in: location,
+    required: getBoolean(value.required) ?? location === 'path',
+    description: getString(value.description),
+    schema: value.schema,
+  };
+}
+
+function isParameterLocation(value: string | undefined): value is ParameterLocation {
+  return value === 'path' || value === 'query' || value === 'header' || value === 'cookie';
+}
+
+function parseParameters(pathItem: OpenApiPathItem, operation: OpenApiOperation): ParameterDef[] {
+  const pathParameters: unknown[] = Array.isArray(pathItem.parameters) ? pathItem.parameters : [];
+  const operationParameters: unknown[] = Array.isArray(operation.parameters) ? operation.parameters : [];
+
+  return [...pathParameters, ...operationParameters]
+    .map(parseParameter)
+    .filter((parameter): parameter is ParameterDef => parameter !== null);
+}
+
+function parseContent(value: unknown): { contentTypes: string[]; schema?: unknown } {
+  if (!isRecord(value)) {
+    return { contentTypes: [], schema: undefined };
+  }
+
+  const contentTypes = Object.keys(value);
+  const firstContent = value[contentTypes[0] ?? ''];
+
+  if (!isRecord(firstContent)) {
+    return { contentTypes, schema: undefined };
+  }
+
+  return { contentTypes, schema: firstContent.schema };
+}
+
+function parseRequestBody(value: unknown): RequestBodyDef | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const { contentTypes, schema } = parseContent(value.content);
+
+  return {
+    required: getBoolean(value.required) ?? false,
+    description: getString(value.description),
+    contentTypes,
+    schema,
+  };
+}
+
+function parseResponses(value: unknown): ResponseDef[] {
+  if (!isRecord(value)) {
+    return [];
+  }
+
+  return Object.entries(value)
+    .map(([statusCode, response]) => {
+      if (!isRecord(response)) {
+        return null;
+      }
+
+      const { contentTypes, schema } = parseContent(response.content);
+
+      return {
+        statusCode,
+        description: getString(response.description) ?? '',
+        contentTypes,
+        schema,
+      } satisfies ResponseDef;
+    })
+    .filter((response): response is ResponseDef => response !== null);
+}
+
+function parseOperation(
+  path: string,
+  method: HttpMethod,
+  pathItem: OpenApiPathItem,
+  value: unknown,
+): EndpointDef | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const operationId = getString(value.operationId);
+
+  return {
+    id: toEndpointId(method, path, operationId),
+    method,
+    path,
+    operationId,
+    summary: getString(value.summary),
+    description: getString(value.description),
+    tags: getStringArray(value.tags),
+    parameters: parseParameters(pathItem, value),
+    requestBody: parseRequestBody(value.requestBody),
+    responses: parseResponses(value.responses),
+  } satisfies EndpointDef;
+}
+
+export function parseOpenApiSpec(spec: OpenAPIObject): EndpointDef[] {
+  if (!isRecord(spec.paths)) {
+    return [];
+  }
+
+  return Object.entries(spec.paths).flatMap(([path, pathItem]) => {
+    if (!isRecord(pathItem)) {
+      return [];
+    }
+
+    return Object.entries(pathItem)
+      .filter(([method]) => isHttpMethod(method))
+      .map(([method, operation]) => parseOperation(path, method as HttpMethod, pathItem, operation))
+      .filter((endpoint): endpoint is EndpointDef => endpoint !== null);
+  });
 }

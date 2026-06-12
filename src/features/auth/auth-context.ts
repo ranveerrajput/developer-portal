@@ -1,19 +1,16 @@
-import { createContext, useContext } from "react";
-import type { Session } from "./auth-service";
+import { createContext } from 'react';
+import type { Session, User } from '@supabase/supabase-js';
 
-export interface AuthContextValue {
+type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated' | 'unconfigured';
+
+export type AuthContextValue = {
+  status: AuthStatus;
   session: Session | null;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
-  logout: () => void;
-  getToken: () => string | undefined;
-}
+  user: User | null;
+  error: string | null;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
+};
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
-
-export function useAuth(): AuthContextValue {
-  const value = useContext(AuthContext);
-  if (!value) throw new Error("useAuth must be used inside AuthProvider");
-  return value;
-}

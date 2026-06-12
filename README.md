@@ -1,51 +1,121 @@
-# Developer Portal Assignment
+# Developer Portal
 
-React 18 + TypeScript developer portal for external API partners. The portal includes local authentication, OpenAPI-driven docs, live sandbox requests, API key management, usage analytics, status, changelog, request history, environment switching, and light/dark theme support.
+An extensible API documentation and sandbox portal built with React 18, TypeScript, Vite, React Router, TanStack Query, Zustand, Tailwind CSS, Zod, and Vitest.
+
+The portal is registry driven: API documentation, sandbox endpoints, SDK links, changelog entries, status data, and search all flow from registered API definitions and OpenAPI specs.
 
 ## Prerequisites
 
 - Node.js 20+
 - npm 10+
+- A Supabase project for authentication
 
-## Run Locally
+## Setup
+
+Install dependencies:
 
 ```bash
-npm install
+npm ci
+```
+
+Create local environment variables:
+
+```bash
+cp .env.example .env
+```
+
+Fill in:
+
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
+
+Start the app:
+
+```bash
 npm run dev
 ```
 
-Then open the local Vite URL.
-
-## Test User
-
-Use the sign-up flow to create any test user. A convenient demo credential is:
-
-- Email: `reviewer@example.com`
-- Password: `Password123`
-
-Auth is implemented as a custom local JWT-style session for the take-home environment: passwords are SHA-256 hashed in browser storage, sessions persist in `localStorage`, bearer tokens include expiry, and the auth provider silently refreshes tokens when they are close to expiry. A hosted provider such as Auth0 or Supabase would be the production replacement; this implementation keeps the assignment runnable without external secrets.
-
-## Add A New API
-
-1. Create `src/apis/<api-name>/openapi.json` with a valid OpenAPI 3.x spec.
-2. Optionally add `docs.md` and `changelog.json` beside it.
-3. Add one entry to `src/apis/api-registry.ts` with `id`, `name`, `version`, `spec`, `baseUrl`, and optional `docsContent`, `changelog`, and `sdks`.
-
-No component code is required. The sidebar, docs renderer, sandbox, changelog, status page, and analytics fixtures read from the registry dynamically.
-
-## Quality Commands
+Run quality checks:
 
 ```bash
 npm run lint
 npm run type-check
-npm run build
 npm test -- --run
+npm run build
 ```
 
-## Bonus Features Attempted
+## Authentication
 
-- GitHub Actions CI: lint, type-check, build, and tests.
-- Multi-environment switcher.
-- Request history.
-- Rate-limit visualizer placeholder after sandbox requests.
-- Dark/light theme toggle.
+Authentication uses Supabase Auth because it provides production-grade email/password flows, JWT session handling, persisted sessions, and silent token refresh through the official browser SDK.
+
+Required Supabase settings:
+
+- Enable email/password authentication.
+- Add the local Vite URL, usually `http://localhost:5173`, to allowed redirect URLs if confirmation redirects are enabled.
+- Use the public anon key only. Do not commit service role keys.
+
+To create a test user, open the app, choose `Create account`, and sign up with an email and password of at least eight characters.
+
+Protected routes redirect unauthenticated users to sign in. The sandbox automatically injects the active Supabase access token as a bearer token when a user is signed in.
+
+## Adding New APIs
+
+Add a new API without changing component code:
+
+1. Create a folder under `src/apis/<api-name>/`.
+2. Add `openapi.json`, using a valid OpenAPI 3.x document.
+3. Optionally add `docs.md` and `changelog.json`.
+4. Add one entry to `src/apis/api-registry.ts`.
+
+Example:
+
+```ts
+import newApiDocsFile from '@/apis/new-api/docs.md?url';
+import newApiChangelog from '@/apis/new-api/changelog.json';
+import newApiSpec from '@/apis/new-api/openapi.json';
+
+{
+  id: 'new-api',
+  name: 'New API',
+  version: '1.0.0',
+  spec: newApiSpec,
+  docsFile: newApiDocsFile,
+  changelog: newApiChangelog,
+  sdks: [
+    {
+      lang: 'TypeScript',
+      install: 'npm install @example/new-api',
+      repo: 'https://github.com/example/new-api',
+    },
+  ],
+  baseUrl: 'https://api.example.test',
+}
+```
+
+Once registered, the API appears in the sidebar, documentation renderer, sandbox, search, changelog, status, and analytics surfaces.
+
+## Architecture
+
+The app is organized by feature:
+
+- `src/apis`: API registry and per-API assets.
+- `src/lib/spec-parser.ts`: OpenAPI 3.x parser that normalizes paths, methods, parameters, request bodies, and responses.
+- `src/features/docs`: OpenAPI documentation renderer, markdown quickstarts, SDK resources, and error catalogue.
+- `src/features/sandbox`: Request builder, live request execution, auth token injection, and snippet generation.
+- `src/features/auth`: Supabase auth provider, protected routes, forms, and `useAuth`.
+- `src/features/keys`: API key management demo state.
+- `src/features/analytics`, `status`, `changelog`, `search`, `theme`: Portal feature modules.
+- `src/store`: Zustand UI/client state.
+
+Server or async state uses TanStack Query. UI state uses Zustand. OpenAPI endpoint data is never hardcoded in JSX.
+
+## CI
+
+GitHub Actions runs on `push` and `pull_request`:
+
+- lint
+- type-check
+- tests
+- build
