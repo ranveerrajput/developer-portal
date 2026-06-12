@@ -29,7 +29,11 @@ Fill in:
 ```bash
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_ENABLE_DEMO_AUTH=false
 ```
+
+For local UI review without a Supabase project, set `VITE_ENABLE_DEMO_AUTH=true`. Demo mode
+persists a local browser session and must not be used as production authentication.
 
 Start the app:
 

@@ -1,8 +1,13 @@
 import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { AuthContext, type AuthContextValue } from '@/features/auth/auth-context';
+import {
+  AuthContext,
+  type AuthContextValue,
+  type AuthSession,
+} from '@/features/auth/auth-context';
 import { isSupabaseConfigured, supabase } from '@/features/auth/supabase-client';
+import { env } from '@/lib/env';
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated' | 'unconfigured';
 
@@ -14,11 +19,38 @@ function authUnavailableError() {
   return new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
 }
 
+const demoSessionKey = 'developer-portal-demo-session';
+const isDemoMode = !isSupabaseConfigured && env.VITE_ENABLE_DEMO_AUTH;
+
+function createDemoSession(email: string): AuthSession {
+  return {
+    access_token: '',
+    user: { email } as Session['user'],
+  };
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [status, setStatus] = useState<AuthStatus>(isSupabaseConfigured ? 'loading' : 'unconfigured');
+  const [session, setSession] = useState<AuthSession | null>(() => {
+    if (!isDemoMode) {
+      return null;
+    }
+
+    const email = localStorage.getItem(demoSessionKey);
+    return email ? createDemoSession(email) : null;
+  });
+  const [status, setStatus] = useState<AuthStatus>(() => {
+    if (isSupabaseConfigured) {
+      return 'loading';
+    }
+
+    if (isDemoMode) {
+      return localStorage.getItem(demoSessionKey) ? 'authenticated' : 'unauthenticated';
+    }
+
+    return 'unconfigured';
+  });
   const [error, setError] = useState<string | null>(
-    isSupabaseConfigured ? null : authUnavailableError().message,
+    isSupabaseConfigured || isDemoMode ? null : authUnavailableError().message,
   );
 
   useEffect(() => {
@@ -51,6 +83,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    if (isDemoMode) {
+      localStorage.setItem(demoSessionKey, email);
+      setSession(createDemoSession(email));
+      setStatus('authenticated');
+      return;
+    }
+
     if (!supabase) {
       throw authUnavailableError();
     }
@@ -65,6 +104,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
+    if (isDemoMode) {
+      localStorage.setItem(demoSessionKey, email);
+      setSession(createDemoSession(email));
+      setStatus('authenticated');
+      return;
+    }
+
     if (!supabase) {
       throw authUnavailableError();
     }
@@ -79,6 +125,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const signOut = useCallback(async () => {
+    if (isDemoMode) {
+      localStorage.removeItem(demoSessionKey);
+      setSession(null);
+      setStatus('unauthenticated');
+      return;
+    }
+
     if (!supabase) {
       throw authUnavailableError();
     }
@@ -98,6 +151,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       session,
       user: session?.user ?? null,
       error,
+      isDemoMode,
       signIn,
       signUp,
       signOut,

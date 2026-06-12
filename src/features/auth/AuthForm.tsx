@@ -44,7 +44,7 @@ function parseFieldErrors(error: ZodError<AuthFormValues>) {
 
 export function AuthForm({ mode }: AuthFormProps) {
   const navigate = useNavigate();
-  const { signIn, signUp, status, error: authError } = useAuth();
+  const { signIn, signUp, status, error: authError, isDemoMode } = useAuth();
   const [values, setValues] = useState<AuthFormValues>({ email: '', password: '' });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -141,6 +141,12 @@ export function AuthForm({ mode }: AuthFormProps) {
         {status === 'unconfigured' ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
             Supabase environment variables are required before authentication can be used.
+          </div>
+        ) : null}
+
+        {isDemoMode ? (
+          <div className="rounded-md border border-teal-200 bg-teal-50 p-3 text-sm text-teal-900">
+            Demo authentication is enabled. Use any valid email and a password of at least 8 characters.
           </div>
         ) : null}
 
